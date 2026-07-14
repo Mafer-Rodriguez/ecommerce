@@ -1,0 +1,19 @@
+{
+    "name": "isaac/ecommerce",
+    "autoload": {
+        "psr-4": {
+            "Isaac\\Ecommerce\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Mafer-Rodriguez",
+            "email": "utm22030609@utma.edu.mx"
+        }
+    ],
+    "require": {
+        "phpmailer/phpmailer": "*",
+        "dompdf/dompdf": "*",
+        "openpay/sdk": "*"
+    }
+}
