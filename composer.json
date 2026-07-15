@@ -14,6 +14,7 @@
     "require": {
         "phpmailer/phpmailer": "*",
         "dompdf/dompdf": "*",
-        "openpay/sdk": "*"
+        "openpay/sdk": "*",
+        "vlucas/phpdotenv": "^5.6"
     }
 }

@@ -40,7 +40,7 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
     exit;
 }
 
-$stmt = $conn->prepare("
+$stmt = $con->prepare("
     SELECT *
     FROM pedidos
     WHERE identificador = ?
@@ -48,7 +48,7 @@ $stmt = $conn->prepare("
 ");
 
 if (!$stmt) {
-    die($conn->error);
+    die($con->error);
 }
 
 $stmt->bind_param('s', $_GET['id']);
@@ -82,18 +82,20 @@ if (
 
 $ventas = [];
 
-$stmtVentas = $conn->prepare("
+$stmtVentas = $con->prepare("
     SELECT titulo, sku, cantidad, precio, descuento
     FROM ventas
     WHERE identificador = ?
 ");
 
 if (!$stmtVentas) {
-    die($conn->error);
+    die($con->error);
 }
 
 $stmtVentas->bind_param('s', $pedido['identificador']);
 $stmtVentas->execute();
+
+$titulo = $sku = $cantidad = $precio = $descuento  = null;
 
 $stmtVentas->bind_result(
     $titulo,
@@ -213,10 +215,10 @@ while ($stmtVentas->fetch()) {
                         <div class="row">
                             <div class="col-9">
                                 <p class="mb-1">
-                                    <strong><?= (int)$item['cantidad'] ?> x <?= htmlspecialchars($item['titulo']) ?></strong>
+                                    <strong><?= (int)$item['cantidad'] ?> x <?= htmlspecialchars($item['titulo'] ?? '', ENT_QUOTES, 'UTF-8') ?></strong>
                                 </p>
                                 <p class="mb-0 small text-muted">
-                                    SKU: <?= htmlspecialchars($item['sku']) ?>
+                                    SKU: <?= htmlspecialchars($item['sku'] ?? '', ENT_QUOTES, 'UTF-8') ?>
                                 </p>
 
                             </div>

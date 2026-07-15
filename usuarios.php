@@ -36,7 +36,7 @@ if (isset($_SESSION['username'])) {
     $username = $_SESSION['username'];
 
     $query = "SELECT * FROM usuarios WHERE username = '$username'";
-    $result = mysqli_query($conn, $query);
+    $result = mysqli_query($con, $query);
 
     if (mysqli_num_rows($result) > 0) {
         $row = mysqli_fetch_assoc($result);
@@ -109,7 +109,7 @@ if (isset($_SESSION['username'])) {
                                     <tbody>
                                         <?php
                                         $query = "SELECT * FROM usuarios ORDER BY id DESC";
-                                        $query_run = mysqli_query($conn, $query);
+                                        $query_run = mysqli_query($con, $query);
                                         if (mysqli_num_rows($query_run) > 0) {
                                             foreach ($query_run as $registro) {
                                         ?>

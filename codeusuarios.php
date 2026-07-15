@@ -11,10 +11,10 @@ use PHPMailer\PHPMailer\SMTP;
 require 'vendor/autoload.php';
 
 if (isset($_POST['delete'])) {
-    $registro_id = mysqli_real_escape_string($conn, $_POST['delete']);
+    $registro_id = mysqli_real_escape_string($con, $_POST['delete']);
 
     $query = "DELETE FROM usuarios WHERE id='$registro_id' ";
-    $query_run = mysqli_query($conn, $query);
+    $query_run = mysqli_query($con, $query);
 
     if ($query_run) {
         $_SESSION['alert'] = [
@@ -37,14 +37,14 @@ if (isset($_POST['delete'])) {
 
 if (isset($_POST['update'])) {
 
-    $id = mysqli_real_escape_string($conn, $_POST['id']);
-    $nombre = mysqli_real_escape_string($conn, $_POST['nombre']);
-    $apellidopaterno = mysqli_real_escape_string($conn, $_POST['apellidopaterno']);
-    $apellidomaterno = mysqli_real_escape_string($conn, $_POST['apellidomaterno']);
-    $username = mysqli_real_escape_string($conn, $_POST['username']);
+    $id = mysqli_real_escape_string($con, $_POST['id']);
+    $nombre = mysqli_real_escape_string($con, $_POST['nombre']);
+    $apellidopaterno = mysqli_real_escape_string($con, $_POST['apellidopaterno']);
+    $apellidomaterno = mysqli_real_escape_string($con, $_POST['apellidomaterno']);
+    $username = mysqli_real_escape_string($con, $_POST['username']);
     $password = $_POST['password']; // NO escapar todavía
-    $rol = mysqli_real_escape_string($conn, $_POST['rol']);
-    $estatus = mysqli_real_escape_string($conn, $_POST['estatus']);
+    $rol = mysqli_real_escape_string($con, $_POST['rol']);
+    $estatus = mysqli_real_escape_string($con, $_POST['estatus']);
 
     // Base del update
     $query = "
@@ -65,7 +65,7 @@ if (isset($_POST['update'])) {
 
     $query .= " WHERE id = '$id'";
 
-    $query_run = mysqli_query($conn, $query);
+    $query_run = mysqli_query($con, $query);
 
     if ($query_run) {
         $_SESSION['alert'] = [
@@ -89,12 +89,12 @@ if (isset($_POST['update'])) {
 
 if (isset($_POST['save'])) {
 
-    $nombre = mysqli_real_escape_string($conn, $_POST['nombre']);
-    $apellidopaterno = mysqli_real_escape_string($conn, $_POST['apellidopaterno']);
-    $apellidomaterno = mysqli_real_escape_string($conn, $_POST['apellidomaterno']);
-    $email = mysqli_real_escape_string($conn, $_POST['username']);
-    $password = mysqli_real_escape_string($conn, $_POST['password']);
-    $rol = mysqli_real_escape_string($conn, $_POST['rol']);
+    $nombre = mysqli_real_escape_string($con, $_POST['nombre']);
+    $apellidopaterno = mysqli_real_escape_string($con, $_POST['apellidopaterno']);
+    $apellidomaterno = mysqli_real_escape_string($con, $_POST['apellidomaterno']);
+    $email = mysqli_real_escape_string($con, $_POST['username']);
+    $password = mysqli_real_escape_string($con, $_POST['password']);
+    $rol = mysqli_real_escape_string($con, $_POST['rol']);
     $estatus = "1";
 
     // Verificar el rol y asignar el nombre correspondiente
@@ -107,7 +107,7 @@ if (isset($_POST['save'])) {
     }
 
     $check_email_query = "SELECT * FROM usuarios WHERE username='$email' LIMIT 1";
-    $result = mysqli_query($conn, $check_email_query);
+    $result = mysqli_query($con, $check_email_query);
 
     if (mysqli_num_rows($result) > 0) {
         $_SESSION['alert'] = [
@@ -122,7 +122,7 @@ if (isset($_POST['save'])) {
 
         $query = "INSERT INTO usuarios SET nombre='$nombre', apellidopaterno='$apellidopaterno', apellidomaterno='$apellidomaterno', username='$email', password='$hashed_password', rol='$rol', estatus='$estatus'";
 
-        $query_run = mysqli_query($conn, $query);
+        $query_run = mysqli_query($con, $query);
         if ($query_run) {
 
             // Configuracion SMTP
