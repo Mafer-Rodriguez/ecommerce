@@ -4,15 +4,17 @@ require 'dbcon.php';
 
 if (isset($_POST['login'])) {
 
-    $username = mysqli_real_escape_string($con, $_POST['username']);
+    $username = trim($_POST['username']);
     $password = $_POST['password'];
 
-    $query = "SELECT * FROM usuarios WHERE username='$username' LIMIT 1";
-    $query_run = mysqli_query($con, $query);
+    $stmt = $con->prepare("SELECT * FROM usuarios WHERE username = ? LIMIT 1");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $query_run = $stmt->get_result();
 
-    if (mysqli_num_rows($query_run) > 0) {
+    if ($query_run->num_rows > 0) {
 
-        $usuario = mysqli_fetch_assoc($query_run);
+        $usuario = $query_run->fetch_assoc();
 
         // Verificar contraseña
         if (password_verify($password, $usuario['password'])) {
@@ -25,7 +27,6 @@ if (isset($_POST['login'])) {
 
                 header("Location: usuarios.php");
                 exit();
-
             } else {
 
                 $_SESSION['alert'] = [
@@ -37,7 +38,6 @@ if (isset($_POST['login'])) {
                 header("Location: login.php");
                 exit();
             }
-
         } else {
 
             $_SESSION['alert'] = [
@@ -49,7 +49,6 @@ if (isset($_POST['login'])) {
             header("Location: login.php");
             exit();
         }
-
     } else {
 
         $_SESSION['alert'] = [
@@ -62,4 +61,5 @@ if (isset($_POST['login'])) {
         exit();
     }
 
+    $stmt->close();
 }

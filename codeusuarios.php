@@ -10,11 +10,17 @@ use PHPMailer\PHPMailer\SMTP;
 
 require 'vendor/autoload.php';
 
-if (isset($_POST['delete'])) {
-    $registro_id = mysqli_real_escape_string($con, $_POST['delete']);
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 
-    $query = "DELETE FROM usuarios WHERE id='$registro_id' ";
-    $query_run = mysqli_query($con, $query);
+if (isset($_POST['delete'])) {
+
+    $registro_id = $_POST['delete'];
+
+    $stmt = $con->prepare("DELETE FROM usuarios WHERE id = ?");
+    $stmt->bind_param("i", $registro_id);
+    $query_run = $stmt->execute();
+    $stmt->close();
 
     if ($query_run) {
         $_SESSION['alert'] = [
@@ -22,50 +28,80 @@ if (isset($_POST['delete'])) {
             'title' => 'USUARIO ELIMINADO',
             'icon' => 'success'
         ];
-        header("Location: usuarios.php");
-        exit(0);
     } else {
         $_SESSION['alert'] = [
             'message' => 'Notifica a soporte',
             'title' => 'ERROR AL ELIMINAR',
             'icon' => 'error'
         ];
-        header("Location: usuarios.php");
-        exit(0);
     }
+    header("Location: usuarios.php");
+    exit(0);
 }
 
 if (isset($_POST['update'])) {
 
-    $id = mysqli_real_escape_string($con, $_POST['id']);
-    $nombre = mysqli_real_escape_string($con, $_POST['nombre']);
-    $apellidopaterno = mysqli_real_escape_string($con, $_POST['apellidopaterno']);
-    $apellidomaterno = mysqli_real_escape_string($con, $_POST['apellidomaterno']);
-    $username = mysqli_real_escape_string($con, $_POST['username']);
-    $password = $_POST['password']; // NO escapar todavía
-    $rol = mysqli_real_escape_string($con, $_POST['rol']);
-    $estatus = mysqli_real_escape_string($con, $_POST['estatus']);
+    $id = $_POST['id'];
+    $nombre = $_POST['nombre'];
+    $apellidopaterno = $_POST['apellidopaterno'];
+    $apellidomaterno = $_POST['apellidomaterno'];
+    $username = $_POST['username'];
+    $password = $_POST['password']; // Puede venir vacío si no se quiere cambiar
+    $rol = $_POST['rol'];
+    $estatus = $_POST['estatus'];
 
-    // Base del update
-    $query = "
-        UPDATE usuarios SET
-            nombre = '$nombre',
-            apellidopaterno = '$apellidopaterno',
-            apellidomaterno = '$apellidomaterno',
-            username = '$username',
-            rol = '$rol',
-            estatus = '$estatus'
-    ";
-
-    //  Solo si el password NO está vacío
     if (!empty($password)) {
+        // Se actualiza también la contraseña
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $query .= ", password = '$hashed_password'";
+
+        $stmt = $con->prepare("
+            UPDATE usuarios SET
+                nombre = ?,
+                apellidopaterno = ?,
+                apellidomaterno = ?,
+                username = ?,
+                rol = ?,
+                estatus = ?,
+                password = ?
+            WHERE id = ?
+        ");
+        $stmt->bind_param(
+            "sssssssi",
+            $nombre,
+            $apellidopaterno,
+            $apellidomaterno,
+            $username,
+            $rol,
+            $estatus,
+            $hashed_password,
+            $id
+        );
+    } else {
+        // No se toca la contraseña
+        $stmt = $con->prepare("
+            UPDATE usuarios SET
+                nombre = ?,
+                apellidopaterno = ?,
+                apellidomaterno = ?,
+                username = ?,
+                rol = ?,
+                estatus = ?
+            WHERE id = ?
+        ");
+        $stmt->bind_param(
+            "ssssssi",
+            $nombre,
+            $apellidopaterno,
+            $apellidomaterno,
+            $username,
+            $rol,
+            $estatus,
+            $id
+        );
     }
 
-    $query .= " WHERE id = '$id'";
-
-    $query_run = mysqli_query($con, $query);
+    $query_run = $stmt->execute();
+    $stmt->close();
 
     if ($query_run) {
         $_SESSION['alert'] = [
@@ -73,28 +109,26 @@ if (isset($_POST['update'])) {
             'title' => 'USUARIO EDITADO',
             'icon' => 'success'
         ];
-        header("Location: usuarios.php");
-        exit;
     } else {
         $_SESSION['alert'] = [
             'message' => 'Notifica a soporte',
             'title' => 'ERROR AL EDITAR',
             'icon' => 'error'
         ];
-        header("Location: usuarios.php");
-        exit;
     }
+    header("Location: usuarios.php");
+    exit;
 }
 
 
 if (isset($_POST['save'])) {
 
-    $nombre = mysqli_real_escape_string($con, $_POST['nombre']);
-    $apellidopaterno = mysqli_real_escape_string($con, $_POST['apellidopaterno']);
-    $apellidomaterno = mysqli_real_escape_string($con, $_POST['apellidomaterno']);
-    $email = mysqli_real_escape_string($con, $_POST['username']);
-    $password = mysqli_real_escape_string($con, $_POST['password']);
-    $rol = mysqli_real_escape_string($con, $_POST['rol']);
+    $nombre = $_POST['nombre'];
+    $apellidopaterno = $_POST['apellidopaterno'];
+    $apellidomaterno = $_POST['apellidomaterno'];
+    $email = $_POST['username'];
+    $password = $_POST['password'];
+    $rol = $_POST['rol'];
     $estatus = "1";
 
     // Verificar el rol y asignar el nombre correspondiente
@@ -106,10 +140,15 @@ if (isset($_POST['save'])) {
         $rol_nombre = "Otro"; // Por si acaso el rol no es 1 ni 2
     }
 
-    $check_email_query = "SELECT * FROM usuarios WHERE username='$email' LIMIT 1";
-    $result = mysqli_query($con, $check_email_query);
+    // Verificar si el correo ya existe
+    $stmtCheck = $con->prepare("SELECT id FROM usuarios WHERE username = ? LIMIT 1");
+    $stmtCheck->bind_param("s", $email);
+    $stmtCheck->execute();
+    $result = $stmtCheck->get_result();
 
-    if (mysqli_num_rows($result) > 0) {
+    if ($result->num_rows > 0) {
+        $stmtCheck->close();
+
         $_SESSION['alert'] = [
             'title' => 'ERROR',
             'message' => 'Este correo ya está registrado',
@@ -117,124 +156,133 @@ if (isset($_POST['save'])) {
         ];
         header("Location: usuarios.php");
         exit(0);
-    } else {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    }
+    $stmtCheck->close();
 
-        $query = "INSERT INTO usuarios SET nombre='$nombre', apellidopaterno='$apellidopaterno', apellidomaterno='$apellidomaterno', username='$email', password='$hashed_password', rol='$rol', estatus='$estatus'";
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-        $query_run = mysqli_query($con, $query);
-        if ($query_run) {
+    $stmtInsert = $con->prepare("
+        INSERT INTO usuarios (nombre, apellidopaterno, apellidomaterno, username, password, rol, estatus)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmtInsert->bind_param(
+        "sssssss",
+        $nombre,
+        $apellidopaterno,
+        $apellidomaterno,
+        $email,
+        $hashed_password,
+        $rol,
+        $estatus
+    );
+    $query_run = $stmtInsert->execute();
+    $stmtInsert->close();
 
-            // Configuracion SMTP
-            $host = 'smtp.gmail.com';
-            $port = 587;
-            $username = 'maferr1804@gmail.com';
-            $smtpPassword = 'upuyfdphzvvcruhx';
-            $security = PHPMailer::ENCRYPTION_STARTTLS;
+    if ($query_run) {
 
+        // Configuracion SMTP (leídas desde variables de entorno, NUNCA hardcodeadas)
+        $host = $_ENV['SMTP_HOST'] ?? 'smtp.gmail.com';
+        $port = $_ENV['SMTP_PORT'] ?? 587;
+        $smtpUsername = $_ENV['SMTP_USERNAME'] ?? '';
+        $smtpPassword = $_ENV['SMTP_PASSWORD'] ?? '';
+        $security = PHPMailer::ENCRYPTION_STARTTLS;
 
-            // Crear instancia PHPMailer
-            $mail = new PHPMailer(true);
+        if (empty($smtpUsername) || empty($smtpPassword)) {
+            error_log('Las variables SMTP_USERNAME / SMTP_PASSWORD no se cargaron desde el .env. Verifica que el archivo .env exista en la raíz del proyecto.');
+        }
 
-            // Configurar SMTP
-            $mail->isSMTP();
-            $mail->Host = $host;
-            $mail->Port = $port;
-            $mail->SMTPAuth = true;
-            $mail->Username = $username;
-            $mail->Password = $smtpPassword;
-            $mail->SMTPSecure = $security;
-            // $mail->SMTPDebug = 2;
-            // $mail->Debugoutput = 'error_log';
+        // Crear instancia PHPMailer
+        $mail = new PHPMailer(true);
 
+        // Configurar SMTP
+        $mail->isSMTP();
+        $mail->Host = $host;
+        $mail->Port = $port;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUsername;
+        $mail->Password = $smtpPassword;
+        $mail->SMTPSecure = $security;
 
-            // Configurar correo
-            $mail->setFrom($username, 'Ecommerce UTMA');
-            // $mail->addReplyTo($email, $nombreuser);
-            $mail->addAddress($email);
-            $mail->Subject = 'NUEVO USUARIO';
-            $mail->CharSet = 'UTF-8';
-            $mail->isHTML(true);
+        // Configurar correo
+        $mail->setFrom($smtpUsername, 'Ecommerce UTMA');
+        $mail->addAddress($email);
+        $mail->Subject = 'NUEVO USUARIO';
+        $mail->CharSet = 'UTF-8';
+        $mail->isHTML(true);
 
-            // Cuerpo del mensaje
+        // Cuerpo del mensaje (SIN incluir la contraseña por seguridad)
+        $cuerpo = '
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta http-equiv="X-UA-Compatible" content="IE=edge">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: system-ui;text-align: justify;background-color: #e7e7e7;">
+                <div style="max-width:500px;margin: 0 auto;">
+                    <img style="width: 100%;background-color: #1e375c;" src="#" alt="Cintillo superior">
+                <div style="padding: 0px 30px;padding-top: 35px;">
+                    <p>Estimado/a ' . htmlspecialchars($nombre) . '</p>
+                    <p>Tu cuenta para gestionar el catálogo de productos y servicios de Mi Empresa se creó exitosamente.</p>
+                    <p>Por seguridad, establece tu contraseña desde el enlace que te compartirá el administrador, y no la compartas con nadie.</p>
 
-            $asunto = 'Solicitud para colaborar';
-            $cuerpo = '
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                </head>
-                <body style="font-family: system-ui;text-align: justify;background-color: #e7e7e7;">
-                    <div style="max-width:500px;margin: 0 auto;">
-                        <img style="width: 100%;background-color: #1e375c;" src="#" alt="Cintillo superior">
-                    <div style="padding: 0px 30px;padding-top: 35px;">
-                        <p>Estimado/a ' . $nombre . '</p>
-                        <p>Tu cuenta para gestionar el catálogo de productos y servicios de Mi Empresa se creo exitosamente.</p>
-                        <p>Por seguridad no compartas tus credenciales con nadie.</p>
-
-                        <div style="padding: 3px 20px;background-color:#efefef;color:#000000;border-radius: 3px;margin: 50px 0px;text-align:left;">
-                        <p style="margin-bottom: 0px;"><b>Conoce los detalles de tu cuenta:</b></p>
-                        <div style="display: flex; flex-direction: column; margin: 0 auto;">
-                            <div style="display: flex; flex-wrap: wrap;">
-                                <p style="margin-right: 5px;margin-bottom: 0px;"><b>Nombre:</b></p>
-                                <p style="flex: 2;margin-bottom: 0px;">' . $nombre . ' ' . $apellidopaterno . ' ' . $apellidomaterno . '</p>
-                            </div>
+                    <div style="padding: 3px 20px;background-color:#efefef;color:#000000;border-radius: 3px;margin: 50px 0px;text-align:left;">
+                    <p style="margin-bottom: 0px;"><b>Conoce los detalles de tu cuenta:</b></p>
+                    <div style="display: flex; flex-direction: column; margin: 0 auto;">
+                        <div style="display: flex; flex-wrap: wrap;">
+                            <p style="margin-right: 5px;margin-bottom: 0px;"><b>Nombre:</b></p>
+                            <p style="flex: 2;margin-bottom: 0px;">' . htmlspecialchars($nombre . ' ' . $apellidopaterno . ' ' . $apellidomaterno) . '</p>
                         </div>
-                        
-                        <p><b>Correo:</b> ' . $email . '</p>
-                        <p><b>Contraseña:</b> ' . $password . '</p>
-                        <p><b>Rol:</b> ' . $rol_nombre . '</p>
-                        </div>
-
-                        <p style="text-align: center;margin-top:80px;margin-bottom:0px;">Atentamente</p>
-                        <p style="text-align: center;margin-top:0px;margin-bottom:50px;"><b>Equipo administrativo</b></p>
                     </div>
-                    <div style="background-color: #af3335;color: #ffffff;padding: 15px 15px;font-size: 10px;text-align: center;padding-bottom: 15px;margin-bottom: 25px;">
-                        <p>Este correo es enviado de manera automática por nuestro sistema de respuesta rápida.</p>
+
+                    <p><b>Correo:</b> ' . htmlspecialchars($email) . '</p>
+                    <p><b>Rol:</b> ' . htmlspecialchars($rol_nombre) . '</p>
                     </div>
-                    </div>
-                </body>
-                
-                </html>';
 
-            $mail->Body = $cuerpo;
+                    <p style="text-align: center;margin-top:80px;margin-bottom:0px;">Atentamente</p>
+                    <p style="text-align: center;margin-top:0px;margin-bottom:50px;"><b>Equipo administrativo</b></p>
+                </div>
+                <div style="background-color: #af3335;color: #ffffff;padding: 15px 15px;font-size: 10px;text-align: center;padding-bottom: 15px;margin-bottom: 25px;">
+                    <p>Este correo es enviado de manera automática por nuestro sistema de respuesta rápida.</p>
+                </div>
+                </div>
+            </body>
 
-            $correoEnviado = false;
+            </html>';
 
-            try {
-                $mail->SMTPDebug = SMTP::DEBUG_SERVER;
-                $mail->Debugoutput = 'html';
-                $correoEnviado = $mail->send();
-            } catch (Exception $e) {
-                error_log('Error al enviar el correo: ' . $mail->ErrorInfo);
-            }
+        $mail->Body = $cuerpo;
 
-            if ($query_run && $correoEnviado) {
-                $_SESSION['alert'] = [
-                    'title' => 'SOLICITUD EXITOSA',
-                    'message' => 'Revisa tu correo electrónico',
-                    'icon' => 'success'
-                ];
-            } else {
-                $_SESSION['alert'] = [
-                    'title' => 'ERROR',
-                    'message' => 'El usuario se creo pero el correo no pudo enviarse',
-                    'icon' => 'warning'
-                ];
-            }
+        $correoEnviado = false;
 
-            header("Location: usuarios.php");
-            exit(0);
+        try {
+            $correoEnviado = $mail->send();
+        } catch (Exception $e) {
+            error_log('Error al enviar el correo: ' . $mail->ErrorInfo);
+        }
+
+        if ($correoEnviado) {
+            $_SESSION['alert'] = [
+                'title' => 'SOLICITUD EXITOSA',
+                'message' => 'Revisa tu correo electrónico',
+                'icon' => 'success'
+            ];
         } else {
             $_SESSION['alert'] = [
                 'title' => 'ERROR',
-                'message' => 'Notifica a soporte',
-                'icon' => 'error'
+                'message' => 'El usuario se creó pero el correo no pudo enviarse',
+                'icon' => 'warning'
             ];
-            header("Location: usuarios.php");
-            exit(0);
         }
+
+        header("Location: usuarios.php");
+        exit(0);
+    } else {
+        $_SESSION['alert'] = [
+            'title' => 'ERROR',
+            'message' => 'Notifica a soporte',
+            'icon' => 'error'
+        ];
+        header("Location: usuarios.php");
+        exit(0);
     }
 }

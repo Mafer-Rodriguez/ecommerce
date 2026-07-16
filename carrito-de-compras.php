@@ -7,14 +7,15 @@ require 'dbcon.php';
 header("Content-Type: text/html; charset=UTF-8");
 
 $consultaEnvio = $con->query("SELECT valoruno, valordos FROM configuraciones WHERE nombre='Envio' LIMIT 1");
-$env = $consultaEnvio->fetch_assoc();
+$env = $consultaEnvio ? $consultaEnvio->fetch_assoc() : null;
 
-$envioMinimo = $env['valoruno']; // Mínimo para envío gratis
-$envioCosto = $env['valordos'];  // Costo de envío
+$envioMinimo = $env['valoruno'] ?? 0; // Mínimo para envío gratis
+$envioCosto  = $env['valordos'] ?? 0; // Costo de envío
 
 $consultaComision = $con->query("SELECT valoruno FROM configuraciones WHERE id=4 LIMIT 1");
-$com = $consultaComision->fetch_assoc();
-$comisionValor = str_replace('%', '', $com['valoruno']); // Quitamos el % si existe
+$com = $consultaComision ? $consultaComision->fetch_assoc() : null;
+
+$comisionValor = str_replace('%', '', $com['valoruno'] ?? '0'); // Quitamos el % si existe
 $comisionFactor = (float)$comisionValor / 100; // Ej: 0.03
 
 ?>

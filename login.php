@@ -5,6 +5,9 @@ if (isset($_SESSION['username'])) {
     header("Location: usuarios.php");
     exit();
 }
+
+$alert = isset($_SESSION['alert']) ? $_SESSION['alert'] : null;
+unset($_SESSION['alert']); // Se borra en cuanto se lee, no importa si se usa o no
 ?>
 
 <!DOCTYPE html>
@@ -76,6 +79,22 @@ if (isset($_SESSION['username'])) {
         </div>
 
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <?php if (!empty($alert)): ?>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    title: <?= json_encode($alert['title'] ?? 'Notificación') ?>,
+                    <?= !empty($alert['message']) ? 'text: ' . json_encode($alert['message']) . ',' : '' ?>
+                    icon: <?= json_encode($alert['icon'] ?? 'info') ?>,
+                    confirmButtonText: 'OK'
+                });
+            });
+        </script>
+    <?php endif; ?>
 
 </body>
 
